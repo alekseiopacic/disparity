@@ -1,0 +1,40 @@
+Package: disParity
+Type: Package
+Title: Descriptive and Prescriptive Disparity Analysis
+Version: 0.1.0
+Authors@R: c(
+    person(
+      "Aleksei", "Opacic",
+      email = "aopacic@g.harvard.edu",
+      role = c("aut")
+    ),
+    person(
+      "Lai","Wei",
+       email = "laiw@hku.hk",
+       role = c("aut","cre")
+    ),
+    person(
+      "Xiang","Zhou",
+       email = "xiang_zhou@fas.harvard.edu",
+       role = c("aut")
+    )
+  )
+Description: The package implements descriptive and prescriptive disparity analysis (best-known as Kitagawa-Oaxaca-Blinder decomposition) with regression, weighting, and double-machine learning estimators.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Imports: 
+    boot,
+    caret,
+    dplyr,
+    Hmisc,
+    rlang,
+    SuperLearner,
+    survey,
+    tibble,
+    tidyr
+Depends: SuperLearner
+RoxygenNote: 7.3.2
+Suggests: 
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
