@@ -1,4 +1,7 @@
 
+
+
+
 # Generate the dataframe
 dummy_data <- data.frame(
   comp   = sample(c(0, 1), 1000, replace = TRUE),

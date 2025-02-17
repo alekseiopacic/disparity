@@ -108,12 +108,13 @@ descriptive <- function(data, y, r, x, weight.var = NULL,
 
   # Helper: determine weights vector
   get_weights <- function(d) {
-    if (!is.null(weight.var) & weight.var %in% names(d)) {
+    if (!is.null(weight.var)) {
       return(d[[weight.var]])
     } else {
       return(rep(1, nrow(d)))
     }
   }
+
 
   # -----------------------------------------
   # Define bootstrap statistic functions for non-DML sequential
@@ -187,7 +188,9 @@ descriptive <- function(data, y, r, x, weight.var = NULL,
       # For each stage, fit outcome and group membership models via SuperLearner
       for (s in seq_along(cumulative_x)) {
         # Outcome model: fit only on train subset for observations with r == 1
+
         train_r <- train[train[[r]] == 1, ]
+
         outcome_SL <- SuperLearner::SuperLearner(
           Y = train_r[[y]],
           X = train_r[, cumulative_x[[s]], drop = FALSE],
@@ -287,19 +290,23 @@ descriptive <- function(data, y, r, x, weight.var = NULL,
       return(rep(NA, length(x_full) + 3))
     mu1 <- Hmisc::wtd.mean(d1[[y]], w[d[[r]] == 1])
     mu0 <- Hmisc::wtd.mean(d0[[y]], w[d[[r]] == 0])
+
+    overalldiff <- mu0-mu1
+
     outcome_formula <- as.formula(paste(y, "~", paste(x_full, collapse = " + ")))
-    mod <- stats::lm(outcome_formula, data = d1, weights = get_weights(d1))
-    preds <- stats::predict(mod, newdata = d0)
-    mu1_pred <- Hmisc::wtd.mean(preds, w[d[[r]] == 0])
-    total_expl <- mu1_pred - mu1
-    unexplained <- mu0 - mu1_pred
+    mod <- survey::svyglm(outcome_formula, design  = survey::svydesign(id=~1, weights = get_weights(d1), data = d1))
 
     beta <- stats::coef(mod)[-1]
     mean_d1 <- apply(d1 %>% dplyr::select(x_full), 2, function(v) Hmisc::wtd.mean(v, get_weights(d1)))
     mean_d0 <- apply(d0 %>% dplyr::select(x_full), 2, function(v) Hmisc::wtd.mean(v, get_weights(d0)))
 
+
     indiv_contrib <- (mean_d0 - mean_d1) * beta # excluding intercept
-    return(c(indiv_contrib, Total_Explained = total_expl, Unexplained = unexplained, Overall_Difference = mu0 - mu1))
+    total_expl <- sum(indiv_contrib)
+
+    unexplained <- overalldiff - total_expl
+
+    return(c(indiv_contrib, Total_Explained = total_expl, Unexplained = unexplained, Overall_Difference = overalldiff))
   }
 
 
@@ -314,8 +321,12 @@ descriptive <- function(data, y, r, x, weight.var = NULL,
     wt_formula <- as.formula(paste(r, "~", paste(x_full, collapse = " + ")))
     mod <- stats::glm(wt_formula, data = d, weights = w, family = binomial())
     ps <- stats::predict(mod, newdata = d, type = "response")
+    ps[ps < 0.01] <- 0.01
+    ps[ps > 0.99] <- 0.99
     p_white <- Hmisc::wtd.mean(1 - d[[r]], w)
-    w_adj <- ifelse(d[[r]] == 1, 1 / p_white * ((1 - ps) / ps), 0)
+    w_adj <- ifelse(d[[r]] == 1,
+                    trimQ(1 / p_white * ((1 - ps) / ps),0.01,0.99),
+                    0)
     mu1_pred <- Hmisc::wtd.mean(d[[y]][d[[r]] == 1], w_adj[d[[r]] == 1])
     total_expl <- mu1_pred - mu1
     return(total_expl)
@@ -330,15 +341,23 @@ descriptive <- function(data, y, r, x, weight.var = NULL,
     if(nrow(d1) == 0 || nrow(d0) == 0)
       return(NA)
     mu1 <- Hmisc::wtd.mean(d1[[y]], w[d[[r]] == 1])
-    outcome_formula <- as.formula(paste(y, "~", paste(x_full, collapse = " + ")))
-    mod_ri <- stats::lm(outcome_formula, data = d1, weights = get_weights(d1))
-    preds <- stats::predict(mod_ri, newdata = d)
+
+    outcome_formula <- as.formula(paste0(y,"~",r,"+",paste(x_full, collapse = " + ")))
+    mod_ri <- stats::lm(outcome_formula, data = d, weights = get_weights(d))
+    dmutate <- d
+    dmutate[[r]] <- 1
+    preds <- stats::predict(mod_ri, newdata = dmutate)
     mu1_pred_RI <- Hmisc::wtd.mean(preds[d[[r]] == 0], w[d[[r]] == 0])
+
     wt_formula <- as.formula(paste(r, "~", paste(x_full, collapse = " + ")))
     mod_wt <- stats::glm(wt_formula, data = d, weights = w, family = binomial())
     ps <- stats::predict(mod_wt, newdata = d, type = "response")
+    ps[ps < 0.01] <- 0.01
+    ps[ps > 0.99] <- 0.99
     p_white <- Hmisc::wtd.mean(1 - d[[r]], w)
-    w_adj <- ifelse(d[[r]] == 1, 1 / p_white * ((1 - ps) / ps), 0)
+    w_adj <- ifelse(d[[r]] == 1,
+                    trimQ(1 / p_white * ((1 - ps) / ps),0.01,0.99),
+                    0)
     score <- w_adj * (d[[y]] - preds) +
       ifelse(d[[r]] == 0, 1 / p_white * (preds - mu1_pred_RI), 0) +
       mu1_pred_RI
@@ -460,14 +479,25 @@ descriptive <- function(data, y, r, x, weight.var = NULL,
         for (fold in folds) {
           train <- d[-fold, , drop = FALSE]
           valid <- d[fold, , drop = FALSE]
+          valid_mutate <- valid
+          valid_mutate[[r]] <- 1
+
           outcome_SL <- SuperLearner::SuperLearner(
-            Y = train[train[[r]] == 1, ][[y]],
-            X = train[train[[r]] == 1, ][, x_full, drop = FALSE],
-            newX = valid[, x_full, drop = FALSE],
+            Y = train[[y]],
+            X = train[, c(r,x_full), drop = FALSE],
+            newX = valid_mutate[, c(r,x_full), drop = FALSE],
             family = if (tolower(outcome.type) == "binary") binomial() else gaussian(),
             SL.library = learner
           )
+
           m_hat <- outcome_SL$SL.predict
+
+          if (sum(valid[[r]] == 0) > 0) {
+            mu_pred_RI <- Hmisc::wtd.mean(m_hat[valid[[r]] == 0], get_weights(valid)[valid[[r]] == 0])
+          } else {
+            mu_pred_RI <- NA
+          }
+
           ps_SL <- SuperLearner::SuperLearner(
             Y = train[[r]],
             X = train[, x_full, drop = FALSE],
@@ -476,15 +506,16 @@ descriptive <- function(data, y, r, x, weight.var = NULL,
             SL.library = learner
           )
           e_hat <- ps_SL$SL.predict
+          e_hat[e_hat < 0.01] <- 0.01
+          e_hat[e_hat > 0.99] <- 0.99
+
           p_white <- Hmisc::wtd.mean(1 - train[[r]], get_weights(train))
-          if (sum(valid[[r]] == 0) > 0) {
-            mu_pred_RI <- Hmisc::wtd.mean(m_hat[valid[[r]] == 0], get_weights(valid)[valid[[r]] == 0])
-          } else {
-            mu_pred_RI <- NA
-          }
+
           W_i <- ifelse(valid[[r]] == 1, 1 / p_white * ((1 - e_hat) / e_hat), 0)
           phi <- W_i * (valid[[y]] - m_hat) +
-            ifelse(valid[[r]] == 0, 1 / p_white * (m_hat - mu_pred_RI), 0) +
+            ifelse(valid[[r]] == 0,
+                   trimQ(1 / p_white * (m_hat - mu_pred_RI),0.01,0.99),
+                   0) +
             mu_pred_RI
           phi_all <- c(phi_all, phi)
         }
