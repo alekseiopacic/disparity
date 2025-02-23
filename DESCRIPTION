@@ -1,7 +1,7 @@
 Package: disparity
 Type: Package
 Title: Descriptive and Prescriptive Disparity Analysis
-Version: 0.1.0
+Version: 0.1.1
 Authors@R: c(
     person(
       "Aleksei", "Opacic",
@@ -25,14 +25,20 @@ Encoding: UTF-8
 LazyData: true
 Imports: 
     boot,
-    caret,
     dplyr,
-    Hmisc,
-    rlang,
-    SuperLearner,
-    survey,
-    tibble,
-    tidyr
+    tidyr, 
+    purrr, 
+    tibble, 
+    stringr, 
+    Hmisc, 
+    stats, 
+    survey, 
+    SuperLearner, 
+    rootSolve, 
+    caret, 
+    glmnet, 
+    ranger, 
+    rlang
 Depends: SuperLearner
 RoxygenNote: 7.3.2
 Suggests: 
