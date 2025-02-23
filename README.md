@@ -4,7 +4,7 @@
 <!-- badges: start -->
 <!-- badges: end -->
 
-This R package provides tools to implement the methods outlined in Opacic Wei and Zhou (2025): "Disparity Analysis: A Tale of Two Approaches". The package currently contains two functions: \textsf{descriptive} and \textsf{prescriptive}. More features are currently under development.
+This R package provides tools to implement the methods outlined in Opacic Wei and Zhou (2025): "Disparity Analysis: A Tale of Two Approaches". The package currently contains two functions: **descriptive** and **prescriptive**. More features are currently under development.
 
 ## Installation
 
