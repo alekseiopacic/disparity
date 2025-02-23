@@ -19,7 +19,7 @@ Authors@R: c(
        role = c("aut")
     )
   )
-Description: The package implements descriptive and prescriptive disparity analysis (best-known as Kitagawa-Oaxaca-Blinder decomposition) with regression, weighting, and double-machine learning estimators.
+Description: The package implements descriptive and prescriptive disparity analysis with regression, weighting, doubly robust and double-machine learning (DML) estimators.
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true

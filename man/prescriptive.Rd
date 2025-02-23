@@ -51,11 +51,12 @@ This function implements a presriptive analysis of group differences in an outco
 }
 \examples{
 \dontrun{
-  # Prescriptive analysis using parametric
+  # Prescriptive analysis using parametric (ri) estimator
   res_ri <- prescriptive(data_list = data, x = c("age", "female", "parinc"), a = "selective", z = "gpa", r = "black", g = "parinc", y = "comp",
-                         estimator = "ri", K=5)
+                         estimator = "ri", B=250)
 
+  # Prescriptive analysis using DML estimator
   res_dml <- prescriptive(data_list = data, x = c("age", "female", "parinc"), a = "selective", z = "gpa", r = "black", g = "parinc", y = "comp",
-                          estimator = "dml", B = 250)
+                          estimator = "dml", K = 5)
 }
 }
